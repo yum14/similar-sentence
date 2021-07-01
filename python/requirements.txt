@@ -1,0 +1,11 @@
+transformers[torch]
+tqdm
+numpy
+scikit-learn
+scipy
+nltk
+mecab-python3
+Flask
+gunicorn
+fugashi
+ipadic

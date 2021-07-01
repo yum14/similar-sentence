@@ -1,0 +1,14 @@
+[
+  {
+    "idx": 0,
+    "name": "0",
+    "path": "0_BERTJapanese",
+    "type": "sentence_transformers.models.BERTJapanese"
+  },
+  {
+    "idx": 1,
+    "name": "1",
+    "path": "1_Pooling",
+    "type": "sentence_transformers.models.Pooling"
+  }
+]
