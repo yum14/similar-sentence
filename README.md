@@ -5,7 +5,7 @@
 pytorch-models-partialディレクトリ内の分割ファイルを結合して配置します。
 
 ```sh
-cat pytorch-models-partial/pytorch_model.bin.* python/training_bert_japanese/0_BERTJapanese/pytorch_model.bin
+cat pytorch-models-partial/pytorch_model.bin.* > python/training_bert_japanese/0_BERTJapanese/pytorch_model.bin
 ```
 
 ## docker-compose.yml
