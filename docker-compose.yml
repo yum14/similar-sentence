@@ -1,0 +1,38 @@
+version: "3"
+services:
+  nginx:
+    build: ./nginx
+    container_name: similar-sentence-nginx
+    environment:
+      VIRTUAL_HOST: ss.localhost
+    depends_on:
+      - python
+    networks:
+      shared:
+        aliases:
+          - nginx
+    restart: always
+    logging:
+      options:
+        max-size: 5m
+        max-file: "10"
+  python:
+    build: ./python
+    container_name: similar-sentence-python
+    restart: always
+    networks:
+      shared:
+        aliases:
+          - python
+    expose:
+      - 9876
+    volumes:
+      - ./python/training_bert_japanese:/app/training_bert_japanese
+    logging:
+      options:
+        max-size: 5m
+        max-file: "10"
+networks:
+  shared:
+    name: shared
+    driver: bridge
