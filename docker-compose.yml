@@ -4,7 +4,7 @@ services:
     build: ./nginx
     container_name: similar-sentence-nginx
     environment:
-      VIRTUAL_HOST: ss.localhost
+      VIRTUAL_HOST: ss.yum14.icu
     depends_on:
       - python
     networks:
