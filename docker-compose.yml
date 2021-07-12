@@ -5,6 +5,9 @@ services:
     container_name: similar-sentence-nginx
     environment:
       VIRTUAL_HOST: ss.yum14.icu
+      LETSENCRYPT_HOST: ss.yum14.icu # Let's Encryptのホスト設定
+      LETSENCRYPT_EMAIL: app.yum14@gmail.com # Let's Encryptのメール設定
+      LETSENCRYPT_TEST: "false" # Let's Encryptのテストかどうかのフラグ
     depends_on:
       - python
     networks:
