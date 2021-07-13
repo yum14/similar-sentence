@@ -1,9 +1,8 @@
 import json
-from flask import request, Flask
+from flask import request, Flask, abort
 from flask.json import jsonify
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
+from firebase_admin import credentials, auth
 import config
 from models import MySentenceBert
 from data import VectorStore, VectorModel
@@ -13,13 +12,13 @@ app.config["JSON_AS_ASCII"] = False
 
 bert = MySentenceBert()
 
-if len(config.GOOGLE_APPLICATION_CREDENTIALS) == 0:
+if len(config.FIREBASE_CONFIG) == 0:
     firebase_admin.initialize_app()
     print("credentialsないよ")
 else:
     # デバッグ時
-    print("credential: ", config.GOOGLE_APPLICATION_CREDENTIALS)
-    cred = credentials.Certificate(config.GOOGLE_APPLICATION_CREDENTIALS)
+    print("credential: ", config.FIREBASE_CONFIG)
+    cred = credentials.Certificate(config.FIREBASE_CONFIG)
     firebase_admin.initialize_app(cred)
     
 @app.route('/test/', methods=['GET'])
@@ -30,22 +29,32 @@ def test():
 @app.route('/encode', methods=['POST'])
 def encode():
 
+    # idToken取得
+    id_token = request.headers.get("Authorization")
+    if not id_token:
+        print('has not token.')
+        return abort(403)
+
+    try:
+        # idTokenの検証
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+    except:
+        print('Illegal token.')
+        return abort(403)
+
     # jsonリクエストから値取得
     payload = request.json
     sentences = payload.get('sentences')
 
     # ベクトル化
     vectors = bert.encode(sentences)
-
-    print(vectors)
-
-    # TODO: デカすぎるから返却じゃなくて登録にしようか・・
-    store = VectorStore()
-
     vector_arr = list(map(lambda x: x.tolist(), vectors))
 
+    store = VectorStore()
+
     for i, sentence in enumerate(sentences):
-        print('登録開始')
+        print(sentence)
         store.add(VectorModel(sentence, vector_arr[i]))
 
     return jsonify(vector_arr)
