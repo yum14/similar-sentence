@@ -1,3 +1,4 @@
+python-dotenv
 transformers[torch]
 tqdm
 numpy
@@ -9,3 +10,4 @@ Flask
 gunicorn
 fugashi
 ipadic
+firebase-admin

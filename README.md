@@ -1,5 +1,11 @@
 # similar-sentence
 
+## git config(コミット時の絵文字設定)
+
+```sh
+git config --global commit.template .commit_template
+```
+
 ## 学習済モデル
 
 pytorch-models-partialディレクトリ内の分割ファイルを結合して配置します。

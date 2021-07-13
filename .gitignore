@@ -149,3 +149,4 @@ cython_debug/
 # 学習済みモデルは結合済のものはアップしない
 pytorch_model.bin
 
+firebase-adminsdk.json

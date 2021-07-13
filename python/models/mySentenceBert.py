@@ -5,6 +5,10 @@ class MySentenceBert():
   def __init__(self):
     self.model = MyModel()
 
+  def encode(self, sentences):
+    vectors = self.model.encode(sentences)
+    return vectors
+
   def cdist(self, sentences, queries):
     # 全文をエンコード
     all_vectors = self.model.encode(sentences)

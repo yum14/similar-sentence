@@ -1,11 +1,96 @@
+import json
 from flask import request, Flask
 from flask.json import jsonify
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+import config
 from models import MySentenceBert
+from data import VectorStore, VectorModel
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
 bert = MySentenceBert()
+
+if len(config.GOOGLE_APPLICATION_CREDENTIALS) == 0:
+    firebase_admin.initialize_app()
+    print("credentialsないよ")
+else:
+    # デバッグ時
+    print("credential: ", config.GOOGLE_APPLICATION_CREDENTIALS)
+    cred = credentials.Certificate(config.GOOGLE_APPLICATION_CREDENTIALS)
+    firebase_admin.initialize_app(cred)
+    
+@app.route('/test/', methods=['GET'])
+def test():
+    return jsonify(["hello world"])
+
+
+@app.route('/encode', methods=['POST'])
+def encode():
+
+    # jsonリクエストから値取得
+    payload = request.json
+    sentences = payload.get('sentences')
+
+    # ベクトル化
+    vectors = bert.encode(sentences)
+
+    print(vectors)
+
+    # TODO: デカすぎるから返却じゃなくて登録にしようか・・
+    store = VectorStore()
+
+    vector_arr = list(map(lambda x: x.tolist(), vectors))
+
+    for i, sentence in enumerate(sentences):
+        print('登録開始')
+        store.add(VectorModel(sentence, vector_arr[i]))
+
+    return jsonify(vector_arr)
+
+@app.route('/cdist', methods=['POST'])
+def cdist():
+
+    # jsonリクエストから値取得
+    payload = request.json
+    query = payload.get('query')
+
+    # ベクトル化
+    query_vector = bert.encode([query])
+
+    n = 5
+
+    # dbからとってきて・・・
+
+    # all_distances = bert.cdist(sentences, queries)
+        
+    res = []
+
+    # for i, distances in enumerate(all_distances):
+    #     results = zip(range(len(distances)), distances)
+    #     results = sorted(results, key=lambda x: x[1])
+        
+    #     # print("\n\n======================\n\n")
+    #     print("Query:", queries[i])
+    #     # print("\nTop 5 most similar sentences in corpus:")
+
+    #     res_items = []
+            
+    #     # # scoreが10未満(2で割った上で)のもののみ対象とする
+    #     # for j, distance in [item for item in results[0:n] if item[1] / 2 < 10]:
+
+    #     # score上位５件出力
+    #     for j, distance in [item for item in results[0:n]]:
+
+    #         print(j, sentences[j].strip(), "(Score: %.4f)" % (distance / 2))
+    #         res_items.append({'id': j, 'value': sentences[j].strip(), 'score': distance.item() / 2})
+
+    #     res.append(res_items)
+
+    return jsonify(res)
+
 
 @app.route('/', methods=['GET','POST'])
 def callApi():
@@ -79,4 +164,6 @@ def callApi():
         return abort(400)
 
 if __name__ == '__main__':
+
+    # ローカル実行用（gunicorn起動の場合、ここには入ってこない）
     app.run(host='127.0.0.1', port=8080, debug=True)

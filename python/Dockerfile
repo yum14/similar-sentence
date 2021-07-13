@@ -4,9 +4,14 @@ RUN mkdir /app
 COPY requirements.txt /app/requirements.txt
 COPY gunicorn_settings.py /app/gunicorn_settings.py
 COPY app.py /app/app.py
+COPY config.py /app/config.py
+COPY firebase-adminsdk.json /app/firebase-adminsdk.json
 
 COPY models /app/models
 COPY sentence_transformers /app/sentence_transformers
+COPY data /app/data
+
+ENV GOOGLE_APPLICATION_CREDENTIALS="./firebase-adminsdk.json"
 
 RUN mkdir /app/training_bert_japanese
 
