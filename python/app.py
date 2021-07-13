@@ -32,16 +32,14 @@ def encode():
     # idToken取得
     id_token = request.headers.get("Authorization")
     if not id_token:
-        print('has not token.')
-        return abort(403)
+        return jsonify({'message': 'no token.'}), 403
 
     try:
         # idTokenの検証
         decoded_token = auth.verify_id_token(id_token)
         uid = decoded_token['uid']
     except:
-        print('Illegal token.')
-        return abort(403)
+        return jsonify({'message': 'Illegal token.'}), 403
 
     # jsonリクエストから値取得
     payload = request.json

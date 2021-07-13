@@ -145,6 +145,7 @@ cython_debug/
 
 # mac
 .DS_Store
+.vscode
 
 # 学習済みモデルは結合済のものはアップしない
 pytorch_model.bin
