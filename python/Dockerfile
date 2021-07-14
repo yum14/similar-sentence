@@ -11,6 +11,7 @@ COPY models /app/models
 COPY sentence_transformers /app/sentence_transformers
 COPY data /app/data
 
+ENV FIREBASE_CONFIG="./firebase-adminsdk.json"
 ENV GOOGLE_APPLICATION_CREDENTIALS="./firebase-adminsdk.json"
 
 RUN mkdir /app/training_bert_japanese
