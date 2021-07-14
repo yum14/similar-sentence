@@ -21,10 +21,9 @@ else:
     cred = credentials.Certificate(config.FIREBASE_CONFIG)
     firebase_admin.initialize_app(cred)
     
-@app.route('/test/', methods=['GET'])
+@app.route('/hello', methods=['POST'])
 def test():
-    return jsonify(["hello world"])
-
+    return jsonify({'message': 'hello world!'})
 
 @app.route('/encode', methods=['POST'])
 def encode():
@@ -45,6 +44,14 @@ def encode():
     payload = request.json
     sentences = payload.get('sentences')
 
+    if not sentences:
+        return jsonify({'message': 'no content.'}), 400
+
+    if not type(sentences) == list:
+        return jsonify({'message': 'sentences is invalid.'}), 400
+
+    print('request: ', sentences, flush=True)
+
     # ベクトル化
     vectors = bert.encode(sentences)
     vector_arr = list(map(lambda x: x.tolist(), vectors))
@@ -52,7 +59,7 @@ def encode():
     store = VectorStore()
 
     for i, sentence in enumerate(sentences):
-        print(sentence)
+        print('vector: ', sentence, flush=True)
         store.add(VectorModel(sentence, vector_arr[i]))
 
     return jsonify(vector_arr)
