@@ -14,7 +14,7 @@ app.config["JSON_AS_ASCII"] = False
 
 bert = MySentenceBert()
 
-if len(config.FIREBASE_CONFIG) == 0:
+if not config.FIREBASE_CONFIG:
     firebase_admin.initialize_app()
 else:
     # デバッグ時
@@ -30,7 +30,7 @@ def test():
 def encode():
 
     # 認証
-    if len(config.NEEDS_AUCHENTICATION) == 0 or config.NEEDS_AUCHENTICATION == 'TRUE':
+    if not config.NEEDS_AUCHENTICATION or config.NEEDS_AUCHENTICATION == 'TRUE':
         # idToken取得
         id_token = request.headers.get("Authorization")
         if not id_token:
@@ -77,7 +77,7 @@ def encode():
 def encodetestdata():
 
     # 認証
-    if len(config.NEEDS_AUCHENTICATION) == 0 or config.NEEDS_AUCHENTICATION == 'TRUE':
+    if not config.NEEDS_AUCHENTICATION or config.NEEDS_AUCHENTICATION == 'TRUE':
         # idToken取得
         id_token = request.headers.get("Authorization")
         if not id_token:
@@ -112,7 +112,7 @@ def encodetestdata():
 def cdist():
 
     # 認証
-    if len(config.NEEDS_AUCHENTICATION) == 0 or config.NEEDS_AUCHENTICATION == 'TRUE':
+    if not config.NEEDS_AUCHENTICATION or config.NEEDS_AUCHENTICATION == 'TRUE':
         # idToken取得
         id_token = request.headers.get("Authorization")
         if not id_token:
