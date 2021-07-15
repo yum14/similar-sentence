@@ -10,3 +10,8 @@ class VectorStore():
     def add(self, vector: VectorModel):
         self.db.collection(self.collectionName).document(str(uuid.uuid4())).set(vector.to_dict())
 
+    def get(self):
+        docs = self.db.collection(self.collectionName).stream()
+
+        dict_list = list(map(lambda x: x.to_dict(), docs))
+        return list(map(lambda x: VectorModel(x['id'], x['sentence'], x['vector']), dict_list))

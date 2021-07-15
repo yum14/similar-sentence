@@ -7,6 +7,8 @@ import config
 from models import MySentenceBert
 from data import VectorStore, VectorModel
 
+import uuid
+
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
 
@@ -14,7 +16,6 @@ bert = MySentenceBert()
 
 if len(config.FIREBASE_CONFIG) == 0:
     firebase_admin.initialize_app()
-    print("credentialsないよ")
 else:
     # デバッグ時
     print("credential: ", config.FIREBASE_CONFIG)
@@ -28,29 +29,35 @@ def test():
 @app.route('/encode', methods=['POST'])
 def encode():
 
-    # idToken取得
-    id_token = request.headers.get("Authorization")
-    if not id_token:
-        return jsonify({'message': 'no token.'}), 403
+    # 認証
+    if len(config.NEEDS_AUCHENTICATION) == 0 or config.NEEDS_AUCHENTICATION == 'TRUE':
+        # idToken取得
+        id_token = request.headers.get("Authorization")
+        if not id_token:
+            return jsonify({'message': 'no token.'}), 403
 
-    try:
-        # idTokenの検証
-        decoded_token = auth.verify_id_token(id_token)
-        uid = decoded_token['uid']
-    except:
-        return jsonify({'message': 'Illegal token.'}), 403
+        try:
+            # idTokenの検証
+            decoded_token = auth.verify_id_token(id_token)
+            uid = decoded_token['uid']
+        except:
+            return jsonify({'message': 'Illegal token.'}), 403
 
     # jsonリクエストから値取得
     payload = request.json
-    sentences = payload.get('sentences')
+    id = payload.get('id')
+    sentence = payload.get('sentence')
 
-    if not sentences:
-        return jsonify({'message': 'no content.'}), 400
+    if not id:
+        return jsonify({'message': "no attribute 'id'"}), 400
 
-    if not type(sentences) == list:
-        return jsonify({'message': 'sentences is invalid.'}), 400
+    if not sentence:
+        return jsonify({'message': "no attribute 'sentence'"}), 400
 
-    print('request: ', sentences, flush=True)
+    print('request: ', {'id': id, 'sentence': sentence}, flush=True)
+
+    # 配列化
+    sentences = [sentence]
 
     # ベクトル化
     vectors = bert.encode(sentences)
@@ -59,49 +66,99 @@ def encode():
     store = VectorStore()
 
     for i, sentence in enumerate(sentences):
-        print('vector: ', sentence, flush=True)
-        store.add(VectorModel(sentence, vector_arr[i]))
+        print('vector: ', vector_arr[i], flush=True)
+        store.add(VectorModel(id, sentence, vector_arr[i]))
 
     return jsonify(vector_arr)
 
-@app.route('/cdist', methods=['POST'])
-def cdist():
+
+
+@app.route('/encodetestdata', methods=['POST'])
+def encodetestdata():
+
+    # 認証
+    if len(config.NEEDS_AUCHENTICATION) == 0 or config.NEEDS_AUCHENTICATION == 'TRUE':
+        # idToken取得
+        id_token = request.headers.get("Authorization")
+        if not id_token:
+            return jsonify({'message': 'no token.'}), 403
+
+        try:
+            # idTokenの検証
+            decoded_token = auth.verify_id_token(id_token)
+            uid = decoded_token['uid']
+        except:
+            return jsonify({'message': 'Illegal token.'}), 403
 
     # jsonリクエストから値取得
     payload = request.json
-    query = payload.get('query')
+    sentences = payload.get('sentences')
 
     # ベクトル化
-    query_vector = bert.encode([query])
+    vectors = bert.encode(sentences)
+    vector_arr = list(map(lambda x: x.tolist(), vectors))
 
-    n = 5
+    store = VectorStore()
 
-    # dbからとってきて・・・
+    for i, sentence in enumerate(sentences):
+        print('vector: ', vector_arr[i], flush=True)
+        store.add(VectorModel(str(uuid.uuid4()), sentence, vector_arr[i]))
 
-    # all_distances = bert.cdist(sentences, queries)
+    return jsonify(vector_arr)
+
+
+
+@app.route('/cdist/', methods=['GET'])
+def cdist():
+
+    # 認証
+    if len(config.NEEDS_AUCHENTICATION) == 0 or config.NEEDS_AUCHENTICATION == 'TRUE':
+        # idToken取得
+        id_token = request.headers.get("Authorization")
+        if not id_token:
+            return jsonify({'message': 'no token.'}), 403
+
+        try:
+            # idTokenの検証
+            decoded_token = auth.verify_id_token(id_token)
+            uid = decoded_token['uid']
+        except:
+            return jsonify({'message': 'Illegal token.'}), 403
+
+    q = request.args.get('q', '')
+
+    if not q:
+        return jsonify({'message': 'no content.'}), 400
+
+    # ベクトル化
+    query_vectors = bert.encode([q])
+
+    # vectorデータ全件取得
+    store = VectorStore()
+    all_sentences = store.get()
+
+    all_labels = list(map(lambda x: {'id': x.id, 'sentence': x.sentence}, all_sentences))
+    all_vectors = list(map(lambda x: x.vector, all_sentences))
+
+    # 距離を算出
+    all_distances = bert.cdist(all_vectors, query_vectors)
         
+    n = 5
     res = []
 
-    # for i, distances in enumerate(all_distances):
-    #     results = zip(range(len(distances)), distances)
-    #     results = sorted(results, key=lambda x: x[1])
-        
-    #     # print("\n\n======================\n\n")
-    #     print("Query:", queries[i])
-    #     # print("\nTop 5 most similar sentences in corpus:")
+    for i, distances in enumerate(all_distances):
+        results = zip(range(len(distances)), distances)
+        results = sorted(results, key=lambda x: x[1])
 
-    #     res_items = []
-            
-    #     # # scoreが10未満(2で割った上で)のもののみ対象とする
-    #     # for j, distance in [item for item in results[0:n] if item[1] / 2 < 10]:
+        res_items = []
 
-    #     # score上位５件出力
-    #     for j, distance in [item for item in results[0:n]]:
+        # score上位５件出力
+        for j, distance in [item for item in results[0:n]]:
 
-    #         print(j, sentences[j].strip(), "(Score: %.4f)" % (distance / 2))
-    #         res_items.append({'id': j, 'value': sentences[j].strip(), 'score': distance.item() / 2})
+            # print(j, all_labels[j].strip(), "(Score: %.4f)" % (distance / 2))
+            res_items.append({'id': all_labels[j]['id'], 'sentence': all_labels[j]['sentence'], 'score': distance.item() / 2})
 
-    #     res.append(res_items)
+        res.append(res_items)
 
     return jsonify(res)
 
@@ -147,7 +204,7 @@ def callApi():
         n = 5
         queries = request.form["queries"].replace('\r\n', '\n').replace('\r', '\n').split('\n')
         sentences = request.form["sentences"].replace('\r\n', '\n').replace('\r', '\n').split('\n')
-        all_distances = bert.cdist(sentences, queries)
+        all_distances = bert.encodeAndCdist(sentences, queries)
         
         res = []
 
@@ -176,6 +233,8 @@ def callApi():
 
     else:
         return abort(400)
+
+
 
 if __name__ == '__main__':
 

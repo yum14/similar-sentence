@@ -1,8 +1,11 @@
+from firebase_admin import firestore
 
 class VectorModel:
-    def __init__(self, sentence, vector):
+    def __init__(self, id, sentence, vector, createdAt=firestore.SERVER_TIMESTAMP):
+        self.id = id
         self.sentence = sentence
         self.vector = vector
+        self.createdAt = createdAt
 
     def to_dict(self):
-        return {'sentence': self.sentence, 'vector': self.vector}
+        return {'id': self.id, 'sentence': self.sentence, 'vector': self.vector, 'createdAt': self.createdAt}
