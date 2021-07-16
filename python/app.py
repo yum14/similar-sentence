@@ -34,14 +34,22 @@ def encode():
         # idToken取得
         id_token = request.headers.get("Authorization")
         if not id_token:
-            return jsonify({'message': 'no token.'}), 403
+            return jsonify({'message': 'Authorization header is expected.'}), 401
+
+        parts = id_token.split()
+
+        if not parts[0].lower() == 'bearer':
+            return jsonify({'message': 'Authorization header must start with Bearer.'}), 401
+
+        if not parts[1]:
+            return jsonify({'message': 'Token not found.'}), 401
 
         try:
             # idTokenの検証
-            decoded_token = auth.verify_id_token(id_token)
+            decoded_token = auth.verify_id_token(parts[1])
             uid = decoded_token['uid']
         except:
-            return jsonify({'message': 'Illegal token.'}), 403
+            return jsonify({'message': 'invalid token.'}), 401
 
     # jsonリクエストから値取得
     payload = request.json
