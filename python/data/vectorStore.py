@@ -3,8 +3,8 @@ from .vectorModel import VectorModel
 import uuid
 
 class VectorStore():
-    def __init__(self):
-        self.collectionName = 'vectors'
+    def __init__(self, uid):
+        self.collectionName = 'vectors_' + uid
         self.db = firestore.client()
 
     def add(self, vector: VectorModel):

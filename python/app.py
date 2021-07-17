@@ -1,12 +1,11 @@
 import json
-from flask import request, Flask, abort
+from flask import request, Flask, Response
 from flask.json import jsonify
 import firebase_admin
 from firebase_admin import credentials, auth
 import config
-from models import MySentenceBert
+from models import MySentenceBert, VectorResponse, VectorResponseError
 from data import VectorStore, VectorModel
-
 import uuid
 
 app = Flask(__name__)
@@ -21,35 +20,43 @@ else:
     print("credential: ", config.FIREBASE_CONFIG)
     cred = credentials.Certificate(config.FIREBASE_CONFIG)
     firebase_admin.initialize_app(cred)
-    
-@app.route('/hello', methods=['POST'])
-def test():
-    return jsonify({'message': 'hello world!'})
 
-@app.route('/encode', methods=['POST'])
-def encode():
-
-    # 認証
-    if not config.NEEDS_AUCHENTICATION or config.NEEDS_AUCHENTICATION == 'TRUE':
+def authenticate():
+    if not config.NEEDS_AUCHENTICATION or config.NEEDS_AUCHENTICATION.lower() == 'true':
         # idToken取得
         id_token = request.headers.get("Authorization")
         if not id_token:
-            return jsonify({'message': 'Authorization header is expected.'}), 401
+            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('Authorization header is expected.').to_dict()]).to_dict()), 'status': 401}
 
         parts = id_token.split()
 
         if not parts[0].lower() == 'bearer':
-            return jsonify({'message': 'Authorization header must start with Bearer.'}), 401
+            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('Authorization header must start with Bearer.').to_dict()]).to_dict()), 'status': 401}
 
         if not parts[1]:
-            return jsonify({'message': 'Token not found.'}), 401
+            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('Token not found.').to_dict()]).to_dict()), 'status': 401}
 
         try:
             # idTokenの検証
             decoded_token = auth.verify_id_token(parts[1])
             uid = decoded_token['uid']
+
+            return {'result': True, 'uid': uid}
         except:
-            return jsonify({'message': 'invalid token.'}), 401
+            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('invalid token.').to_dict()]).to_dict()), 'status': 401}
+    else:
+        return {'result': True, 'uid': config.TEST_UID}
+
+
+@app.route('/encode', methods=['POST'])
+def encode():
+
+    # 認証
+    auth = authenticate()
+    if not auth['result']:
+        return auth['message'], auth['status']
+
+    uid = auth['uid']
 
     # jsonリクエストから値取得
     payload = request.json
@@ -57,10 +64,10 @@ def encode():
     sentence = payload.get('sentence')
 
     if not id:
-        return jsonify({'message': "no attribute 'id'"}), 400
+        return jsonify(VectorResponse('', [VectorResponseError("'id' not found.").to_dict()]).to_dict()), 400
 
     if not sentence:
-        return jsonify({'message': "no attribute 'sentence'"}), 400
+        return jsonify(VectorResponse('', [VectorResponseError("'sentence' not found.").to_dict()]).to_dict()), 400
 
     print('request: ', {'id': id, 'sentence': sentence}, flush=True)
 
@@ -71,32 +78,24 @@ def encode():
     vectors = bert.encode(sentences)
     vector_arr = list(map(lambda x: x.tolist(), vectors))
 
-    store = VectorStore()
+    store = VectorStore(uid)
 
     for i, sentence in enumerate(sentences):
         print('vector: ', vector_arr[i], flush=True)
         store.add(VectorModel(id, sentence, vector_arr[i]))
 
-    return jsonify(vector_arr)
-
+    return jsonify(VectorResponse(id).to_dict())
 
 
 @app.route('/encodetestdata', methods=['POST'])
 def encodetestdata():
 
     # 認証
-    if not config.NEEDS_AUCHENTICATION or config.NEEDS_AUCHENTICATION == 'TRUE':
-        # idToken取得
-        id_token = request.headers.get("Authorization")
-        if not id_token:
-            return jsonify({'message': 'no token.'}), 403
+    auth = authenticate()
+    if not auth['result']:
+        return auth['message'], auth['status']
 
-        try:
-            # idTokenの検証
-            decoded_token = auth.verify_id_token(id_token)
-            uid = decoded_token['uid']
-        except:
-            return jsonify({'message': 'Illegal token.'}), 403
+    uid = auth['uid']
 
     # jsonリクエストから値取得
     payload = request.json
@@ -106,43 +105,31 @@ def encodetestdata():
     vectors = bert.encode(sentences)
     vector_arr = list(map(lambda x: x.tolist(), vectors))
 
-    store = VectorStore()
+    store = VectorStore(uid)
 
     for i, sentence in enumerate(sentences):
         print('vector: ', vector_arr[i], flush=True)
         store.add(VectorModel(str(uuid.uuid4()), sentence, vector_arr[i]))
 
-    return jsonify(vector_arr)
-
+    return jsonify({'result': 'success'})
 
 
 @app.route('/cdist/', methods=['GET'])
 def cdist():
 
     # 認証
-    if not config.NEEDS_AUCHENTICATION or config.NEEDS_AUCHENTICATION == 'TRUE':
-        # idToken取得
-        id_token = request.headers.get("Authorization")
-        if not id_token:
-            return jsonify({'message': 'no token.'}), 403
+    auth = authenticate()
+    if not auth['result']:
+        return auth['message'], auth['status']
 
-        try:
-            # idTokenの検証
-            decoded_token = auth.verify_id_token(id_token)
-            uid = decoded_token['uid']
-        except:
-            return jsonify({'message': 'Illegal token.'}), 403
-
+    uid = auth['uid']
     q = request.args.get('q', '')
-
-    if not q:
-        return jsonify({'message': 'no content.'}), 400
 
     # ベクトル化
     query_vectors = bert.encode([q])
 
     # vectorデータ全件取得
-    store = VectorStore()
+    store = VectorStore(uid)
     all_sentences = store.get()
 
     all_labels = list(map(lambda x: {'id': x.id, 'sentence': x.sentence}, all_sentences))
@@ -171,7 +158,7 @@ def cdist():
     return jsonify(res)
 
 
-@app.route('/', methods=['GET','POST'])
+@app.route('/testform/', methods=['GET','POST'])
 def callApi():
 
     if request.method == 'GET':
