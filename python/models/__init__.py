@@ -1,4 +1,5 @@
 from .myModel import MyModel
 from .mySentenceBert import MySentenceBert
-from .vectorResponseError import VectorResponseError
+from .errorResponse import ErrorResponse
 from .vectorResponse import VectorResponse
+from .cdistResponse import CdistResponse, CdistResult

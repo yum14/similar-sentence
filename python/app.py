@@ -4,7 +4,7 @@ from flask.json import jsonify
 import firebase_admin
 from firebase_admin import credentials, auth
 import config
-from models import MySentenceBert, VectorResponse, VectorResponseError
+from models import MySentenceBert, VectorResponse, ErrorResponse, CdistResponse, CdistResult
 from data import VectorStore, VectorModel
 import uuid
 
@@ -26,15 +26,15 @@ def authenticate():
         # idToken取得
         id_token = request.headers.get("Authorization")
         if not id_token:
-            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('Authorization header is expected.').to_dict()]).to_dict()), 'status': 401}
+            return {'result': False, 'errors': [ErrorResponse('Authorization header is expected.').to_dict()], 'status': 401}
 
         parts = id_token.split()
 
         if not parts[0].lower() == 'bearer':
-            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('Authorization header must start with Bearer.').to_dict()]).to_dict()), 'status': 401}
+            return {'result': False, 'errors': [ErrorResponse('Authorization header must start with Bearer.').to_dict()], 'status': 401}
 
         if not parts[1]:
-            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('Token not found.').to_dict()]).to_dict()), 'status': 401}
+            return {'result': False, 'errors': [ErrorResponse('Token not found.').to_dict()], 'status': 401}
 
         try:
             # idTokenの検証
@@ -43,7 +43,7 @@ def authenticate():
 
             return {'result': True, 'uid': uid}
         except:
-            return {'result': False, 'message': jsonify(VectorResponse('', [VectorResponseError('invalid token.').to_dict()]).to_dict()), 'status': 401}
+            return {'result': False, 'errors': [ErrorResponse('invalid token.').to_dict()], 'status': 401}
     else:
         return {'result': True, 'uid': config.TEST_UID}
 
@@ -54,7 +54,7 @@ def encode():
     # 認証
     auth = authenticate()
     if not auth['result']:
-        return auth['message'], auth['status']
+        return jsonify(VectorResponse('', auth['errors']).to_dict()), auth['status']
 
     uid = auth['uid']
 
@@ -64,10 +64,10 @@ def encode():
     sentence = payload.get('sentence')
 
     if not id:
-        return jsonify(VectorResponse('', [VectorResponseError("'id' not found.").to_dict()]).to_dict()), 400
+        return jsonify(VectorResponse('', [ErrorResponse("'id' not found.").to_dict()]).to_dict()), 400
 
     if not sentence:
-        return jsonify(VectorResponse('', [VectorResponseError("'sentence' not found.").to_dict()]).to_dict()), 400
+        return jsonify(VectorResponse('', [ErrorResponse("'sentence' not found.").to_dict()]).to_dict()), 400
 
     print('request: ', {'id': id, 'sentence': sentence}, flush=True)
 
@@ -87,40 +87,13 @@ def encode():
     return jsonify(VectorResponse(id).to_dict())
 
 
-@app.route('/encodetestdata', methods=['POST'])
-def encodetestdata():
-
-    # 認証
-    auth = authenticate()
-    if not auth['result']:
-        return auth['message'], auth['status']
-
-    uid = auth['uid']
-
-    # jsonリクエストから値取得
-    payload = request.json
-    sentences = payload.get('sentences')
-
-    # ベクトル化
-    vectors = bert.encode(sentences)
-    vector_arr = list(map(lambda x: x.tolist(), vectors))
-
-    store = VectorStore(uid)
-
-    for i, sentence in enumerate(sentences):
-        print('vector: ', vector_arr[i], flush=True)
-        store.add(VectorModel(str(uuid.uuid4()), sentence, vector_arr[i]))
-
-    return jsonify({'result': 'success'})
-
-
 @app.route('/cdist/', methods=['GET'])
 def cdist():
 
     # 認証
     auth = authenticate()
     if not auth['result']:
-        return auth['message'], auth['status']
+        return jsonify(CdistResponse([], auth['errors']).to_dict()), auth['status']
 
     uid = auth['uid']
     q = request.args.get('q', '')
@@ -151,11 +124,12 @@ def cdist():
         for j, distance in [item for item in results[0:n]]:
 
             # print(j, all_labels[j].strip(), "(Score: %.4f)" % (distance / 2))
-            res_items.append({'id': all_labels[j]['id'], 'sentence': all_labels[j]['sentence'], 'score': distance.item() / 2})
+            # res_items.append({'id': all_labels[j]['id'], 'sentence': all_labels[j]['sentence'], 'score': distance.item() / 2})
+            res_items.append(CdistResult(all_labels[j]['id'], all_labels[j]['sentence'], distance.item() / 2))
 
         res.append(res_items)
 
-    return jsonify(res)
+    return jsonify(CdistResponse(list(map(lambda x: x.to_dict(), res_items))).to_dict())
 
 
 @app.route('/testform/', methods=['GET','POST'])
@@ -228,6 +202,33 @@ def callApi():
 
     else:
         return abort(400)
+
+
+@app.route('/encodetestdata', methods=['POST'])
+def encodetestdata():
+
+    # 認証
+    auth = authenticate()
+    if not auth['result']:
+        return auth['message'], auth['status']
+
+    uid = auth['uid']
+
+    # jsonリクエストから値取得
+    payload = request.json
+    sentences = payload.get('sentences')
+
+    # ベクトル化
+    vectors = bert.encode(sentences)
+    vector_arr = list(map(lambda x: x.tolist(), vectors))
+
+    store = VectorStore(uid)
+
+    for i, sentence in enumerate(sentences):
+        print('vector: ', vector_arr[i], flush=True)
+        store.add(VectorModel(str(uuid.uuid4()), sentence, vector_arr[i]))
+
+    return jsonify({'result': 'success'})
 
 
 
