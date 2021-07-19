@@ -28,9 +28,8 @@ VIRTUAL_HOST: ss.localhost
 pythonディレクトリ以下に、下記の２ファイルを配置します。
 
 * firebaseプロジェクトで秘密鍵を生成、ダウンロードしたjsonファイルを配置します。
-* 上記jsonファイルパスとfirebaseプロジェクト名を記述した.envファイルを配置します。
+* 上記jsonファイルパスを記述した.envファイルを配置します。
 
 ```json:.env
 FIREBASE_CONFIG=<secret_filepath>
-GOOGLE_CLOUD_PROJECT=<project_name>
 ```
