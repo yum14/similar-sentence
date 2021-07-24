@@ -8,7 +8,7 @@ class VectorStore():
         self.db = firestore.client()
 
     def add(self, vector: VectorModel):
-        self.db.collection(self.collectionName).document(str(uuid.uuid4())).set(vector.to_dict())
+        self.db.collection(self.collectionName).document(vector.id).set(vector.to_dict())
 
     def get(self):
         docs = self.db.collection(self.collectionName).stream()
